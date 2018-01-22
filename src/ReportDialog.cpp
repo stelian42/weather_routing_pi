@@ -42,7 +42,12 @@
 #include "WeatherRouting.h"
 
 ReportDialog::ReportDialog( WeatherRouting &weatherrouting )
-    : ReportDialogBase(&weatherrouting), m_WeatherRouting(weatherrouting)
+#ifndef __WXOSX__
+    : ReportDialogBase(&weatherrouting),
+#else
+    : ReportDialogBase(&weatherrouting, wxID_ANY, _("Weather Route Report"), wxDefaultPosition, wxDefaultSize, wxDEFAULT_DIALOG_STYLE|wxRESIZE_BORDER|wxSTAY_ON_TOP),
+#endif
+      m_WeatherRouting(weatherrouting)
 {
     m_bReportStale = true;
     SetRouteMapOverlays(std::list<RouteMapOverlay*>());
@@ -173,7 +178,7 @@ void ReportDialog::GenerateRoutesReport()
         page += _T("<p>");
         page += c.Start + _T(" ") + _("to") + _T(" ") + c.End + _T(" ") + wxString::Format
             (_T("(%ld ") + wxString(_("configurations")) + _T(")\n"), overlays.size());
-        page += _("<dt>Fastest configuration ") + fastest->StartTime().Format(_T("%x"));
+        page += _("<dt>Fastest configuration ") + fastest->StartTime().Format(_T("%x %X"));
         page += wxString(_T(" ")) + _("avg speed") + wxString::Format
             (_T(": %.2f "), fastest->RouteInfo(RouteMapOverlay::AVGSPEED))
 	    + _("knots");
