@@ -379,7 +379,7 @@ void RouteMapOverlay::Render(wxDateTime time, SettingsDialog &settingsdialog,
                 Unlock();
             }
 
-            unsigned char routecolors[][3] = {
+            static const unsigned char routecolors[][3] = {
                 {  0,   0, 128}, {  0, 192,   0}, {  0, 128, 192}, {  0, 255,   0},
                 {  0,   0, 255}, {  0, 128, 128}, {  0, 255,   0}, {  0, 192, 192},
                 {  0, 128, 255}, {  0, 255, 128}, {  0,   0, 255}, {  0, 192,   0},
@@ -1140,7 +1140,7 @@ void RouteMapOverlay::Clear()
 void RouteMapOverlay::UpdateCursorPosition()
 {
     Position *last_last_cursor_position = last_cursor_position;
-    last_cursor_position = ClosestPosition(last_cursor_lat, last_cursor_lon);
+    last_cursor_position = ClosestPosition(last_cursor_lat, last_cursor_lon, &m_cursor_time);
     if(last_last_cursor_position != last_cursor_position)
         last_cursor_plotdata.clear();
 }
