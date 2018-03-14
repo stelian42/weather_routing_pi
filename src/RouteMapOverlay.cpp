@@ -435,27 +435,62 @@ void RouteMapOverlay::Render(wxDateTime time, SettingsDialog &settingsdialog,
         if(!justendroute) {
             SetColor(dc, CursorColor, true);
             SetWidth(dc, RouteThickness, true);
-            RenderCourse(last_cursor_position, time, false, dc, vp);
+            RenderCourse(last_cursor_position, time, dc, vp);
 
             if(MarkAtPolarChange) {
                 SetColor(dc, Darken(CursorColor), true);
                 SetWidth(dc, (RouteThickness+1)/2, true);
-                RenderCourse(last_cursor_position, time, true, dc, vp);
+                RenderPolarChangeMarks(last_cursor_position, dc, vp);
             }
         }
         SetColor(dc, DestinationColor, true);
         SetWidth(dc, RouteThickness, true);
-        RenderCourse(last_destination_position, time, false, dc, vp);
+        RenderCourse(last_destination_position, time, dc, vp);
         
         if(MarkAtPolarChange) {
             SetColor(dc, Darken(DestinationColor), true);
             SetWidth(dc, (RouteThickness+1)/2, true);
-            RenderCourse(last_destination_position, time, true, dc, vp);
+            RenderPolarChangeMarks(last_destination_position, dc, vp);
         }
     }
 }
 
-void RouteMapOverlay::RenderCourse(Position *pos, wxDateTime time, bool MarkAtPolarChange,
+
+void RouteMapOverlay::RenderPolarChangeMarks(Position *pos, wrDC &dc, PlugIn_ViewPort &vp)
+{
+    if(!pos)
+        return;
+
+    Lock();
+
+    /* draw lines to this route */
+    Position *p;
+    if(!dc.GetDC())
+        glBegin(GL_LINES);
+
+    int polar = pos->polar;
+    for(p = pos; p && p->parent; p = p->parent) {
+        if(p->polar == polar)
+            continue;
+        wxPoint r;
+        GetCanvasPixLL(&vp, &r, p->lat, p->lon);
+        int s = 6;
+        if(dc.GetDC())
+            dc.DrawRectangle(r.x-s, r.y-s, 2*s, 2*s);
+        else {
+            glVertex2i(r.x-s, r.y-s), glVertex2i(r.x+s, r.y-s);
+            glVertex2i(r.x+s, r.y-s), glVertex2i(r.x+s, r.y+s);
+            glVertex2i(r.x+s, r.y+s), glVertex2i(r.x-s, r.y+s);
+            glVertex2i(r.x-s, r.y+s), glVertex2i(r.x-s, r.y-s);
+        }
+        polar = p->polar;
+    }
+    if(!dc.GetDC())
+        glEnd();
+    Unlock();
+}
+
+void RouteMapOverlay::RenderCourse(Position *pos, wxDateTime time,
                                    wrDC &dc, PlugIn_ViewPort &vp)
 {
     if(!pos)
@@ -468,17 +503,10 @@ void RouteMapOverlay::RenderCourse(Position *pos, wxDateTime time, bool MarkAtPo
     if(!dc.GetDC())
         glBegin(GL_LINES);
 
+    int polar = pos->polar;
     for(p = pos; p && p->parent; p = p->parent) {
-        if(MarkAtPolarChange && p->polar != p->parent->polar) {
-            wxPoint r;
-            GetCanvasPixLL(&vp, &r, p->lat, p->lon);
-            int s = 6;
-            glVertex2i(r.x-s, r.y-s), glVertex2i(r.x+s, r.y-s);
-            glVertex2i(r.x+s, r.y-s), glVertex2i(r.x+s, r.y+s);
-            glVertex2i(r.x+s, r.y+s), glVertex2i(r.x-s, r.y+s);
-            glVertex2i(r.x-s, r.y+s), glVertex2i(r.x-s, r.y-s);
-        } else
-            DrawLine(p, p->parent, dc, vp);
+        DrawLine(p, p->parent, dc, vp);
+        polar = p->polar;
     }
     if(!dc.GetDC())
         glEnd();
@@ -508,14 +536,16 @@ void RouteMapOverlay::RenderCourse(Position *pos, wxDateTime time, bool MarkAtPo
             double d = cspan.GetSeconds().ToDouble() / span.GetSeconds().ToDouble();
 
             if(d > 1)
-                d = 1;
+                // d = 1; // draw at end??
+                break; // don't draw if grib time is after end
 
             GetCanvasPixLL(&vp, &r,
                            p->parent->lat + d*(p->lat - p->parent->lat),
                            p->parent->lon + d*heading_resolve(p->lon - p->parent->lon));
 
         } else if(it == origin.begin())
-            GetCanvasPixLL(&vp, &r, p->parent->lat, p->parent->lon);
+            //GetCanvasPixLL(&vp, &r, p->parent->lat, p->parent->lon);
+            break; // don't draw if time is before start
         else {
             it--;
             continue;
@@ -552,7 +582,8 @@ void RouteMapOverlay::RenderWindBarbsOnRoute(wrDC &dc, PlugIn_ViewPort &vp)
     // calculated or are stored in cache line buffer.
     bool toCompute = origin.size() != wind_barb_route_cache_origin_size ||
                      vp.view_scale_ppm != wind_barb_route_cache_scale ||
-                     vp.m_projection_type != wind_barb_route_cache_projection;
+                     vp.m_projection_type != wind_barb_route_cache_projection ||
+                     vp.m_projection_type != PI_PROJECTION_MERCATOR;
     
     // Create a specific viewport at position (0,0)
     // to draw the winds barbs, and then translate it
