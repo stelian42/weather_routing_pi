@@ -1,5 +1,5 @@
 ///////////////////////////////////////////////////////////////////////////
-// C++ code generated with wxFormBuilder (version Mar 14 2018)
+// C++ code generated with wxFormBuilder (version Feb 20 2018)
 // http://www.wxformbuilder.org/
 //
 // PLEASE DO *NOT* EDIT THIS FILE!
@@ -694,6 +694,7 @@ class EditPolarDialogBase : public wxDialog
 		wxNotebook* m_notebook6;
 		wxPanel* m_panel19;
 		wxGrid* m_gPolar;
+		wxStaticText* m_staticText1351;
 		wxPanel* m_panel20;
 		wxTextCtrl* m_tTrueWindAngle;
 		wxListBox* m_lTrueWindAngles;

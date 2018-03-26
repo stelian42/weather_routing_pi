@@ -1,5 +1,5 @@
 ///////////////////////////////////////////////////////////////////////////
-// C++ code generated with wxFormBuilder (version Mar 14 2018)
+// C++ code generated with wxFormBuilder (version Feb 20 2018)
 // http://www.wxformbuilder.org/
 //
 // PLEASE DO *NOT* EDIT THIS FILE!
@@ -1783,8 +1783,6 @@ BoatDialogBase::BoatDialogBase( wxWindow* parent, wxWindowID id, const wxString&
 	int m_cPlotVariableNChoices = sizeof( m_cPlotVariableChoices ) / sizeof( wxString );
 	m_cPlotVariable = new wxChoice( m_panel20, wxID_ANY, wxDefaultPosition, wxDefaultSize, m_cPlotVariableNChoices, m_cPlotVariableChoices, 0 );
 	m_cPlotVariable->SetSelection( 0 );
-	m_cPlotVariable->SetMaxSize( wxSize( 120,-1 ) );
-	
 	fgSizer1021->Add( m_cPlotVariable, 0, wxALL, 5 );
 	
 	m_cbFullPlot = new wxCheckBox( m_panel20, wxID_ANY, _("Full Plot"), wxDefaultPosition, wxDefaultSize, 0 );
@@ -2797,6 +2795,10 @@ EditPolarDialogBase::EditPolarDialogBase( wxWindow* parent, wxWindowID id, const
 	m_gPolar->SetMaxSize( wxSize( -1,400 ) );
 	
 	fgSizer93->Add( m_gPolar, 0, wxALL|wxEXPAND, 5 );
+	
+	m_staticText1351 = new wxStaticText( m_panel19, wxID_ANY, _("Leave any cell blank to automatically interpolate from nearby values.\n View the polar plot in the boat dialog while editing the polar."), wxDefaultPosition, wxDefaultSize, 0 );
+	m_staticText1351->Wrap( -1 );
+	fgSizer93->Add( m_staticText1351, 0, wxALL, 5 );
 	
 	
 	m_panel19->SetSizer( fgSizer93 );
