@@ -574,7 +574,7 @@ static inline bool ComputeBoatSpeed
         VB = polar.Speed(H, VW, true, configuration.OptimizeTacking);
 
     /* failed to determine speed.. */
-    if(isnan(B) || isnan(VB)) {
+    if(wxIsNaN(B) || wxIsNaN(VB)) {
         // when does this hit??
         printf("polar failed bad! %f %f %f %f\n", W, VW, B, VB);
         configuration.polar_failed = true;
@@ -637,8 +637,6 @@ bool Position::Propagate(IsoRouteList &routelist, RouteMapConfiguration &configu
     Position *points = NULL;
     /* through all angles relative to wind */
     int count = 0;
-    bool boundary = false;
-    bool land = false;
 
     double S = Swell(configuration.grib, lat, lon);
     if(S > configuration.MaxSwellMeters)
@@ -689,7 +687,7 @@ bool Position::Propagate(IsoRouteList &routelist, RouteMapConfiguration &configu
         B = W + H; /* rotated relative to true wind */
 
         /* test to avoid extra computations related to backtracking */
-        if(!isnan(bearing1)) {
+        if(!wxIsNaN(bearing1)) {
             double bearing3 = heading_resolve(B);
             if((bearing1 > bearing2 && bearing3 > bearing2 && bearing3 < bearing1) ||
                (bearing1 < bearing2 && (bearing3 > bearing2 || bearing3 < bearing1))) {
@@ -726,7 +724,7 @@ bool Position::Propagate(IsoRouteList &routelist, RouteMapConfiguration &configu
             tacked = true;
         }
 
-        double dlat, dlon, nrdlon;
+        double dlat, dlon;
         if(configuration.Integrator == RouteMapConfiguration::RUNGE_KUTTA) {
             double k2_dist, k2_BG, k3_dist, k3_BG, k4_dist, k4_BG;
             // a lot more experimentation is needed here, maybe use grib for the right time??
@@ -753,7 +751,6 @@ bool Position::Propagate(IsoRouteList &routelist, RouteMapConfiguration &configu
         }
 #endif
 
-        nrdlon = dlon;
         if(configuration.positive_longitudes && dlon < 0)
             dlon += 360;
 
@@ -814,7 +811,7 @@ bool Position::Propagate(IsoRouteList &routelist, RouteMapConfiguration &configu
             if(configuration.DetectLand) {
                 double ndlon1 = dlon1;
                 if (ndlon1 > 360) {
-                    ndlon1 -360;
+                    ndlon1 -= 360;
                 }
                 if (CrossesLand(dlat1, ndlon1)) {
                     configuration.land_crossing = true;
@@ -2160,7 +2157,7 @@ void IsoRoute::PropagateToEnd(RouteMapConfiguration &configuration, double &mind
 
         /* did we tack thru the wind? apply penalty */
         bool tacked = false;
-        if(!isnan(dt) && p->parent_heading*H < 0 && fabs(p->parent_heading - H) < 180) {
+        if(!wxIsNaN(dt) && p->parent_heading*H < 0 && fabs(p->parent_heading - H) < 180) {
             tacked = true;
             dt += configuration.TackingTime;
 #if 0        
@@ -2169,7 +2166,7 @@ void IsoRoute::PropagateToEnd(RouteMapConfiguration &configuration, double &mind
 #endif
         }
 
-        if(!isnan(dt) && dt < mindt) {
+        if(!wxIsNaN(dt) && dt < mindt) {
             mindt = dt;
             minH = H;
             endp = p;
