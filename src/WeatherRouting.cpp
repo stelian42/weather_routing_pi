@@ -1430,6 +1430,7 @@ bool WeatherRouting::OpenXML(wxString filename, bool reportfailure)
                     configuration.WindStrength = AttributeDouble(e, "WindStrength", 1);
 
                     configuration.DetectLand = AttributeBool(e, "DetectLand", true);
+                    configuration.SafetyMarginLand = AttributeDouble(e, "SafetyMarginLand", 2.);
                     configuration.DetectBoundary = AttributeBool(e, "DetectBoundary", false);
                     configuration.Currents = AttributeBool(e, "Currents", true);
                     configuration.OptimizeTacking = AttributeBool(e, "OptimizeTacking", false);
@@ -1533,6 +1534,7 @@ void WeatherRouting::SaveXML(wxString filename)
         c->SetDoubleAttribute("WindStrength", configuration.WindStrength);
 
         c->SetAttribute("DetectLand", configuration.DetectLand);
+        c->SetAttribute("SafetyMarginLand", configuration.SafetyMarginLand);
         c->SetAttribute("DetectBoundary", configuration.DetectBoundary);
         c->SetAttribute("Currents", configuration.Currents);
         c->SetAttribute("OptimizeTacking", configuration.OptimizeTacking);
@@ -2018,7 +2020,7 @@ void WeatherRouting::Export(RouteMapOverlay &routemapoverlay)
 
     for(std::list<PlotData>::iterator it = plotdata.begin(); it != plotdata.end(); it++) {
         PlugIn_Waypoint*  newPoint = new PlugIn_Waypoint
-            ((*it).lat, (*it).lon, _T("circle"), _("Weather Route Point"));
+            ((*it).lat, heading_resolve((*it).lon), _T("circle"), _("Weather Route Point"));
 
         newPoint->m_CreateTime = (*it).time;
         newTrack->pWaypointList->Append(newPoint);
@@ -2268,6 +2270,7 @@ RouteMapConfiguration WeatherRouting::DefaultConfiguration()
     configuration.AllowDataDeficient = false;
     configuration.WindStrength = 1;
     configuration.DetectLand = true;
+    configuration.SafetyMarginLand = 2.;
     configuration.DetectBoundary = false;
     configuration.Currents = false;
     configuration.OptimizeTacking = false;
