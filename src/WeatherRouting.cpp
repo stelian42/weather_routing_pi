@@ -529,8 +529,12 @@ void WeatherRouting::UpdateCursorPositionDialog()
         CursorPositionDialogMessage(dlg, _("Cursor outside computed route map"));
         return;
     }
+    wxDateTime display_time = rmo->GetLastCursorTime();
 
-    dlg.m_stTime->SetLabel(rmo->GetLastCursorTime().Format(_T("%x %X")));
+    if(m_SettingsDialog.m_cbUseLocalTime->GetValue())
+        display_time = display_time.FromUTC();
+
+    dlg.m_stTime->SetLabel(display_time.Format(_T("%x %H:%M")));
 
     wxString pos = wxString::Format(_T("%4.2f%c %4.2f%c"),
                                     fabs(p->lat), p->lat < 0 ? 'S' : 'N',
@@ -723,7 +727,7 @@ void WeatherRouting::OnGoTo( wxCommandEvent& event )
     for(std::list<RouteMapOverlay*>::iterator it = currentroutemaps.begin();
         it != currentroutemaps.end(); it++) {
         RouteMapConfiguration configuration = (*it)->GetConfiguration();
-        if(isnan(configuration.StartLat)) continue;
+        if(wxIsNaN(configuration.StartLat)) continue;
         avg_lat += configuration.StartLat + configuration.EndLat;
         avg_lonx = cos(deg2rad(configuration.StartLon)) + cos(deg2rad(configuration.EndLon));
         avg_lony = sin(deg2rad(configuration.StartLon)) + sin(deg2rad(configuration.EndLon));
@@ -738,7 +742,7 @@ void WeatherRouting::OnGoTo( wxCommandEvent& event )
     for(std::list<RouteMapOverlay*>::iterator it = currentroutemaps.begin();
         it != currentroutemaps.end(); it++) {
         RouteMapConfiguration configuration = (*it)->GetConfiguration();
-        if(isnan(configuration.StartLat)) continue;
+        if(wxIsNaN(configuration.StartLat)) continue;
         double distance;
         DistanceBearingMercator_Plugin(avg_lat, avg_lon,
                                        configuration.StartLat, configuration.StartLon,
@@ -1426,6 +1430,7 @@ bool WeatherRouting::OpenXML(wxString filename, bool reportfailure)
                     configuration.WindStrength = AttributeDouble(e, "WindStrength", 1);
 
                     configuration.DetectLand = AttributeBool(e, "DetectLand", true);
+                    configuration.SafetyMarginLand = AttributeDouble(e, "SafetyMarginLand", 2.);
                     configuration.DetectBoundary = AttributeBool(e, "DetectBoundary", false);
                     configuration.Currents = AttributeBool(e, "Currents", true);
                     configuration.OptimizeTacking = AttributeBool(e, "OptimizeTacking", false);
@@ -1529,6 +1534,7 @@ void WeatherRouting::SaveXML(wxString filename)
         c->SetDoubleAttribute("WindStrength", configuration.WindStrength);
 
         c->SetAttribute("DetectLand", configuration.DetectLand);
+        c->SetAttribute("SafetyMarginLand", configuration.SafetyMarginLand);
         c->SetAttribute("DetectBoundary", configuration.DetectBoundary);
         c->SetAttribute("Currents", configuration.Currents);
         c->SetAttribute("OptimizeTacking", configuration.OptimizeTacking);
@@ -2011,14 +2017,12 @@ void WeatherRouting::Export(RouteMapOverlay &routemapoverlay)
 
     // XXX double check time is really end time, not start time off by one.
     RouteMapConfiguration c = routemapoverlay.GetConfiguration();
-    wxDateTime t = c.StartTime;
 
     for(std::list<PlotData>::iterator it = plotdata.begin(); it != plotdata.end(); it++) {
         PlugIn_Waypoint*  newPoint = new PlugIn_Waypoint
-            ((*it).lat, (*it).lon, _T("circle"), _("Weather Route Point"));
+            ((*it).lat, heading_resolve((*it).lon), _T("circle"), _("Weather Route Point"));
 
-        newPoint->m_CreateTime = t;
-        t = (*it).time;
+        newPoint->m_CreateTime = (*it).time;
         newTrack->pWaypointList->Append(newPoint);
     }
 
@@ -2266,6 +2270,7 @@ RouteMapConfiguration WeatherRouting::DefaultConfiguration()
     configuration.AllowDataDeficient = false;
     configuration.WindStrength = 1;
     configuration.DetectLand = true;
+    configuration.SafetyMarginLand = 2.;
     configuration.DetectBoundary = false;
     configuration.Currents = false;
     configuration.OptimizeTacking = false;

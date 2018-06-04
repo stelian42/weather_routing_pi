@@ -215,6 +215,7 @@ void ConfigurationDialog::SetConfigurations(std::list<RouteMapConfiguration> con
     SET_CHECKBOX(AvoidCycloneTracks);
     SET_SPIN(CycloneMonths);
     SET_SPIN(CycloneDays);
+    SET_SPIN(SafetyMarginLand);
 
     SET_CHECKBOX(DetectLand);
     SET_CHECKBOX(DetectBoundary);
@@ -265,22 +266,28 @@ void ConfigurationDialog::SetBoatFilename(wxString path)
 void ConfigurationDialog::OnResetAdvanced( wxCommandEvent& event )
 {
     m_bBlockUpdate = true;
+
+    // constraints
     m_sMaxLatitude->SetValue(90);
-    m_sTackingTime->SetValue(0);
     m_sWindVSCurrent->SetValue(0);
     m_sMaxCourseAngle->SetValue(180);
     m_sMaxSearchAngle->SetValue(120);
     m_cbAvoidCycloneTracks->SetValue(false);
+    // XXX missing 2
+
+    // Options
     m_cbInvertedRegions->SetValue(false);
     m_cbAnchoring->SetValue(false);
     m_cIntegrator->SetSelection(0);
     m_sWindStrength->SetValue(100);
     m_sTackingTime->SetValue(0);
+    m_sSafetyMarginLand->SetValue(2.);
+
     m_sFromDegree->SetValue(0);
     m_sToDegree->SetValue(180);
     m_tByDegrees->SetValue(_T("5"));
-    m_bBlockUpdate = false;
 
+    m_bBlockUpdate = false;
     Update();
 }
 
@@ -339,34 +346,44 @@ void ConfigurationDialog::Update()
         GET_CHOICE(Start);
         GET_CHOICE(End);
 
-        if(std::find(m_edited_controls.begin(), m_edited_controls.end(), (wxObject*)m_dpStartDate) != m_edited_controls.end())
-            if(m_dpStartDate->GetValue().IsValid()) {
-                int h, m, s;
-                if(std::find(m_edited_controls.begin(), m_edited_controls.end(), (wxObject*)m_tpTime) == m_edited_controls.end()) {
-                    // We must preserve the time in case only date but not time, is being changed by the user...
-                    h = configuration.StartTime.GetHour();
-                    m = configuration.StartTime.GetMinute();
-                    s = configuration.StartTime.GetSecond();
-                }
-                configuration.StartTime = m_dpStartDate->GetValue();
-                m_dpStartDate->SetForegroundColour(wxColour(0, 0, 0));
-                if(std::find(m_edited_controls.begin(), m_edited_controls.end(), (wxObject*)m_tpTime) == m_edited_controls.end()) {
-                    // ... and add it afterwards
-                    configuration.StartTime.SetHour(h);
-                    configuration.StartTime.SetMinute(m);
-                    configuration.StartTime.SetSecond(s);
-                }
-            }
-
-        if(std::find(m_edited_controls.begin(), m_edited_controls.end(), (wxObject*)m_tpTime) != m_edited_controls.end()) {
-            configuration.StartTime.SetHour(m_tpTime->GetValue().GetHour());
-            configuration.StartTime.SetMinute(m_tpTime->GetValue().GetMinute());
-            configuration.StartTime.SetSecond(m_tpTime->GetValue().GetSecond());
-            m_tpTime->SetForegroundColour(wxColour(0, 0, 0));
+        if(std::find(m_edited_controls.begin(), m_edited_controls.end(), (wxObject*)m_dpStartDate) != m_edited_controls.end()) {
+            if(!m_dpStartDate->GetValue().IsValid())
+                continue;
+            // We must preserve the time in case only date but not time, is being changed by the user...
+            // configuration.StartTime is UTC, m_dpStartDate Local or UTC so adjust  
+            wxDateTime time = configuration.StartTime;
+            if(m_WeatherRouting.m_SettingsDialog.m_cbUseLocalTime->GetValue())
+                time = time.FromUTC();
+            
+            wxDateTime date = m_dpStartDate->GetValue();
+            // ... and add it afterwards
+            date.SetHour(time.GetHour());
+            date.SetMinute(time.GetMinute());
+            date.SetSecond(time.GetSecond());
+            
+            if(m_WeatherRouting.m_SettingsDialog.m_cbUseLocalTime->GetValue())
+                date = date.ToUTC();
+            
+            configuration.StartTime = date;
+            m_dpStartDate->SetForegroundColour(wxColour(0, 0, 0));
         }
 
-        if(m_WeatherRouting.m_SettingsDialog.m_cbUseLocalTime->GetValue())
-            configuration.StartTime = configuration.StartTime.ToUTC();
+        if(std::find(m_edited_controls.begin(), m_edited_controls.end(), (wxObject*)m_tpTime) != m_edited_controls.end()) {
+            // must use correct data on UTC conversion to preserve Daylight Savings Time changes across dates
+            wxDateTime time = configuration.StartTime;
+            if(m_WeatherRouting.m_SettingsDialog.m_cbUseLocalTime->GetValue())
+                time = time.FromUTC();
+
+            time.SetHour(m_tpTime->GetValue().GetHour());
+            time.SetMinute(m_tpTime->GetValue().GetMinute());
+            time.SetSecond(m_tpTime->GetValue().GetSecond());
+
+            if(m_WeatherRouting.m_SettingsDialog.m_cbUseLocalTime->GetValue())
+                time = time.ToUTC();
+
+            configuration.StartTime = time;
+            m_tpTime->SetForegroundColour(wxColour(0, 0, 0));
+        }
 
         if(!m_tBoat->GetValue().empty()) {
             configuration.boatFileName = m_tBoat->GetValue();
@@ -401,6 +418,7 @@ void ConfigurationDialog::Update()
         GET_CHECKBOX(AvoidCycloneTracks);
         GET_SPIN(CycloneMonths);
         GET_SPIN(CycloneDays);
+        GET_SPIN(SafetyMarginLand);
 
         GET_CHECKBOX(DetectLand);
         GET_CHECKBOX(DetectBoundary);

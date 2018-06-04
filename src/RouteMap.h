@@ -302,6 +302,7 @@ struct RouteMapConfiguration {
 
     double MaxDivertedCourse, MaxCourseAngle, MaxSearchAngle, MaxTrueWindKnots, MaxApparentWindKnots;
     double MaxSwellMeters, MaxLatitude, TackingTime, WindVSCurrent;
+    double SafetyMarginLand;
 
     bool AvoidCycloneTracks;
     int CycloneMonths, CycloneDays;
@@ -361,7 +362,7 @@ public:
     void SetNewGrib(GribRecordSet *grib);
     void SetNewGrib(WR_GribRecordSet *grib);
     wxDateTime NewTime() { Lock(); wxDateTime time =  m_NewTime; Unlock(); return time; }
-    wxDateTime StartTime() { Lock(); wxDateTime time; if(origin.size()) time = origin.front()->time;
+    wxDateTime StartTime() { Lock(); wxDateTime time = m_Configuration.StartTime;
         Unlock(); return time; }
 
     void SetConfiguration(const RouteMapConfiguration &o) { Lock();
