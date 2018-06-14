@@ -88,7 +88,8 @@ const wxString WeatherRouting::column_names[NUM_COLS] = {"Visible", "Boat", "Sta
                                                          "Avg Current", "Max Current",
                                                          "Avg Swell", "Max Swell",
                                                          "Upwind Percentage",
-                                                         "Port Starboard", "Tacks", "State"};
+                                                         "Port Starboard", "Tacks", "Comfort",
+                                                         "State"};
 
 static int sortcol, sortorder = 1;
 // sort callback. Sort by body.
@@ -374,17 +375,24 @@ void WeatherRouting::Render(wrDC &dc, PlugIn_ViewPort &vp)
         WeatherRoute *weatherroute =
             reinterpret_cast<WeatherRoute*>(wxUIntToPtr(m_panel->m_lWeatherRoutes->GetItemData(i)));
         if(weatherroute->routemapoverlay->m_bEndRouteVisible)
+        {
             weatherroute->routemapoverlay->Render(time, m_SettingsDialog, dc, vp, true);
         
-        // Start WindBarbsOnRoute customization
-        if (m_SettingsDialog.m_cbDisplayWindBarbsOnRoute->GetValue())
-            weatherroute->routemapoverlay->RenderWindBarbsOnRoute(dc, vp);
+            // Start WindBarbsOnRoute customization
+            if (m_SettingsDialog.m_cbDisplayWindBarbsOnRoute->GetValue())
+                weatherroute->routemapoverlay->RenderWindBarbsOnRoute(dc, vp);
+        }
     }
 
     std::list<RouteMapOverlay *>currentroutemaps = CurrentRouteMaps();
     for(std::list<RouteMapOverlay*>::iterator it = currentroutemaps.begin();
         it != currentroutemaps.end(); it++) {
         (*it)->Render(time, m_SettingsDialog, dc, vp, false);
+        
+        // Wind barbs on route
+        if (it == currentroutemaps.begin() &&
+            m_SettingsDialog.m_cbDisplayWindBarbsOnRoute->GetValue())
+            (*it)->RenderWindBarbsOnRoute(dc, vp);
         
         if(it == currentroutemaps.begin() &&
            m_SettingsDialog.m_cbDisplayWindBarbs->GetValue())
@@ -1732,6 +1740,11 @@ void WeatherRoute::Update(WeatherRouting *wr, bool stateonly)
         PortStarboard = wxString::Format(_T("%.0f/%.0f"), ps, 100-ps);
 
         Tacks = wxString::Format(_T("%.0f"), routemapoverlay->RouteInfo(RouteMapOverlay::TACKS));
+        
+        // CUSTOMIZATION
+        // Display sailing comfort
+        int comfort_level = routemapoverlay->RouteInfo(RouteMapOverlay::COMFORT);
+        Comfort = RouteMapOverlay::sailingConditionText(comfort_level);
     }
 
     if(!routemapoverlay->Valid())
@@ -1892,10 +1905,15 @@ void WeatherRouting::UpdateItem(long index, bool stateonly)
             m_panel->m_lWeatherRoutes->SetItem(index, columns[PORT_STARBOARD], weatherroute->PortStarboard);
             m_panel->m_lWeatherRoutes->SetColumnWidth(columns[PORT_STARBOARD], wxLIST_AUTOSIZE);
         }
-
+        
         if(columns[TACKS] >= 0) {
             m_panel->m_lWeatherRoutes->SetItem(index, columns[TACKS], weatherroute->Tacks);
             m_panel->m_lWeatherRoutes->SetColumnWidth(columns[TACKS], wxLIST_AUTOSIZE);
+        }
+        
+        if(columns[COMFORT] >= 0) {
+            m_panel->m_lWeatherRoutes->SetItem(index, columns[COMFORT], weatherroute->Comfort);
+            m_panel->m_lWeatherRoutes->SetColumnWidth(columns[COMFORT], wxLIST_AUTOSIZE);
         }
     }
 
