@@ -52,6 +52,11 @@ std::cout << x << std::endl; } while (0)
 #ifndef _WEATHER_ROUTINGPI_H_
 #define _WEATHER_ROUTINGPI_H_
 
+#ifndef __OCPN__ANDROID__
+#define GetDateCtrlValue GetValue
+#define GetTimeCtrlValue GetValue
+#endif
+
 #include "version.h"
 
 #define     MY_API_VERSION_MAJOR    1
@@ -60,7 +65,8 @@ std::cout << x << std::endl; } while (0)
 #define ABOUT_AUTHOR_URL "http://seandepagnier.users.sourceforge.net"
 
 #include "ocpn_plugin.h"
-#include "wrdc.h"
+#include "plugingl/pidc.h"
+#include "plugingl/qtstylesheet.h"
 
 /* make some warnings go away */
 #ifdef MIN

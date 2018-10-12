@@ -110,7 +110,7 @@ int weather_routing_pi::Init(void)
 
       m_pWeather_Routing = NULL;
 
-#ifdef WEATHER_ROUTING_USE_SVG
+#ifdef OCPN_USE_SVG
       m_leftclick_tool_id = InsertPlugInToolSVG(_T( "WeatherRouting" ),
           _svg_weather_routing, _svg_weather_routing_rollover, _svg_weather_routing_toggled,
           wxITEM_CHECK, _("Weather Routing"), _T( "" ), NULL, WEATHER_ROUTING_TOOL_POSITION, 0, this);
@@ -443,18 +443,19 @@ void weather_routing_pi::OnContextMenuItemCallback(int id)
 bool weather_routing_pi::RenderOverlay(wxDC &dc, PlugIn_ViewPort *vp)
 {
     if(m_pWeather_Routing && m_pWeather_Routing->IsShown()) {
-        wrDC wrdc(dc);
-        m_pWeather_Routing->Render(wrdc, *vp);
+        piDC dc(dc);
+        m_pWeather_Routing->Render(dc, *vp);
         return true;
     }
     return false;
 }
 
 bool weather_routing_pi::RenderGLOverlay(wxGLContext *pcontext, PlugIn_ViewPort *vp)
-{
+{    
     if(m_pWeather_Routing && m_pWeather_Routing->IsShown()) {
-        wrDC wrdc;
-        m_pWeather_Routing->Render(wrdc, *vp);
+        piDC dc;
+        dc.SetVP(vp);
+        m_pWeather_Routing->Render(dc, *vp);
         return true;
     }
     return false;
@@ -510,19 +511,8 @@ void weather_routing_pi::SetColorScheme(PI_ColorScheme cs)
 
 wxString weather_routing_pi::StandardPath()
 {
-    wxStandardPathsBase& std_path = wxStandardPathsBase::Get();
     wxString s = wxFileName::GetPathSeparator();
-#if defined(__WXMSW__)
-    wxString stdPath  = std_path.GetConfigDir();
-#elif defined(__WXGTK__) || defined(__WXQT__)
-    wxString stdPath  = std_path.GetUserDataDir();
-#elif defined(__WXOSX__)
-    wxString stdPath  = (std_path.GetUserConfigDir() + s + _T("opencpn"));   // should be ~/Library/Preferences/opencpn
-#endif
-
-    return stdPath + wxFileName::GetPathSeparator() +
-        _T("plugins") + wxFileName::GetPathSeparator() +
-        _T("weather_routing") +  wxFileName::GetPathSeparator();
+    wxString stdPath  = *GetpPrivateApplicationDataLocation();
 
     stdPath += s + _T("plugins");
     if (!wxDirExists(stdPath))
