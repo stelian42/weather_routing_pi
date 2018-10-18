@@ -48,9 +48,13 @@ ConfigurationBatchDialog::ConfigurationBatchDialog(WeatherRouting *parent)
       m_WeatherRouting(*parent)
 {
     Reset();
+#ifdef __OCPN__ANDROID__
+    wxSize sz = ::wxGetDisplaySize();
+    SetSize(0, 0, sz.x, sz.y-40);
+#endif
 }
 
-void ConfigurationBatchDialog::Render(wrDC &dc, PlugIn_ViewPort &vp)
+void ConfigurationBatchDialog::Render(piDC &dc, PlugIn_ViewPort &vp)
 {
     if(!IsShown() ||
        m_notebookConfigurations->GetCurrentPage() != m_pRoutes)

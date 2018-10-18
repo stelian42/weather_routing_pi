@@ -125,8 +125,8 @@ WeatherRouting::WeatherRouting(wxWindow *parent, weather_routing_pi &plugin)
       m_PlotDialog(*this), m_FilterRoutesDialog(this),
       m_bRunning(false), m_RoutesToRun(0), m_bSkipUpdateCurrentItems(false),
       m_bShowConfiguration(false), m_bShowConfigurationBatch(false),
-      m_bShowSettings(false), m_bShowStatistics(false),
-      m_bShowReport(false), m_bShowPlot(false),
+      m_bShowRoutePosition(false), m_bShowSettings(false),
+      m_bShowStatistics(false), m_bShowReport(false), m_bShowPlot(false),
       m_bShowFilter(false), m_weather_routing_pi(plugin),
       m_positionOnRoute(NULL)
 {
@@ -171,27 +171,26 @@ WeatherRouting::WeatherRouting(wxWindow *parent, weather_routing_pi &plugin)
     int confVersion;
     pConf->Read ( _T ( "ConfigVersion" ), &confVersion, 0);
 
+#ifndef __OCPN__ANDROID__
     if (confVersion < PLUGIN_VERSION_MAJOR * 100 + PLUGIN_VERSION_MINOR) {
+        wxString title = _("New or updated data available");
+        wxString message =
+            _("A new version of the Weather Route plugin has been installed.\n\n"
+              "\"Import new boats and polars\" will overwrite the standard boats\n"
+              "and polars with newer data. If you have modified this data and not\n"
+              "changed the names, your modifications will be overwritten, so be\n"
+              "sure to backup your changes. If you have added new polars or boats\n"
+              "with exclusive names, they will be kept untouched.\n\n"
+              "\"Import example configurations\" will overwrite your route\n"
+              "configurations with a sample set showing you how WeatherRouting\n"
+              "works. Backup your existing configurations if you need.\n\n"
+              "Pressing \"OK\" will apply the selected changes, pressing \"Cancel\"\n"
+              "will do nothing and you will be asked again on the next launch.");
         wxString confDlgChoices[3] = {
           _("Import new boats and polars"),
           _("Import example configurations")};
 
-        wxMultiChoiceDialog confDlg(this,
-                                    _("A new version of the Weather Route plugin has been installed.\n\n"
-				    "\"Import new boats and polars\" will overwrite the standard boats\n"
-				    "and polars with newer data. If you have modified this data and not\n"
-				    "changed the names, your modifications will be overwritten, so be\n"
-				    "sure to backup your changes. If you have added new polars or boats\n"
-				    "with exclusive names, they will be kept untouched.\n\n"
-				    "\"Import example configurations\" will overwrite your route\n"
-				    "configurations with a sample set showing you how WeatherRouting\n"
-				    "works. Backup your existing configurations if you need.\n\n"
-				    "Pressing \"OK\" will apply the selected changes, pressing \"Cancel\"\n"
-				    "will do nothing and you will be asked again on the next launch."),
-                                    _("New or updated data available"),
-                                    2,
-                                    confDlgChoices);
-
+        wxMultiChoiceDialog confDlg(this, message, title, 2, confDlgChoices);
 	/* check on by default if user starts WR for the first time */
 	if (confVersion == 0) {
 	    wxArrayInt sel;
@@ -199,9 +198,12 @@ WeatherRouting::WeatherRouting(wxWindow *parent, weather_routing_pi &plugin)
 	    sel.Add(1);
 	    confDlg.SetSelections(sel);
 	}
+
         if ( confDlg.ShowModal() == wxID_OK ) {
 	    wxArrayInt result = confDlg.GetSelections();
-	    for (size_t i = 0; i < result.GetCount(); i++) {
+	    for (size_t i = 0; i <
+                     result.GetCount();
+                 i++) {
 	        if (result[i] == 0) {
 		    CopyDataFiles(*GetpSharedDataLocation() + _T("plugins/weather_routing_pi/data/boats"), boatsdir);
 		    CopyDataFiles(*GetpSharedDataLocation() + _T("plugins/weather_routing_pi/data/polars"), polarsdir);
@@ -216,11 +218,15 @@ WeatherRouting::WeatherRouting(wxWindow *parent, weather_routing_pi &plugin)
             pConf->Write (  _T ( "ConfigVersion" ), PLUGIN_VERSION_MAJOR * 100 + PLUGIN_VERSION_MINOR);
         }
     }
-
+#endif
     m_SettingsDialog.LoadSettings();
     
     pConf->SetPath ( _T( "/PlugIns/WeatherRouting" ) ); // path can change after modal dialog
     pConf->Read ( _T ( "DisableColPane" ), &m_disable_colpane, false);
+#ifdef __OCPN__ANDROID__
+    m_disable_colpane = true;
+#endif
+    
     wxBoxSizer* bSizer;
     bSizer = new wxBoxSizer(wxVERTICAL);
     this->SetSizer(bSizer);
@@ -260,12 +266,20 @@ WeatherRouting::WeatherRouting(wxWindow *parent, weather_routing_pi &plugin)
     wxPoint p = GetPosition();
     pConf->Read ( _T ( "DialogX" ), &p.x, p.x);
     pConf->Read ( _T ( "DialogY" ), &p.y, p.y);
-    SetPosition(p);
 
     m_size = GetSize();
     pConf->Read ( _T ( "DialogWidth" ), &m_size.x, wxMax(m_size.x, 100));
     pConf->Read ( _T ( "DialogHeight" ), &m_size.y, wxMax(m_size.y, 100));
-    SetSize(m_size);
+#ifdef __OCPN__ANDROID__
+    wxSize sz = ::wxGetDisplaySize();
+    m_size.x = sz.x*3/5;
+    m_size.y = sz.y*2/5;
+    int y = 2*sz.y/3-40;
+    if(m_size.y > y)
+        m_size.y = y;
+#endif
+    SetSize(p.x, p.y, m_size.x, m_size.y);
+
     pConf->Read ( _T ( "DialogSplit" ), &sashpos, 0);
 
     /* periodically check for updates from computation thread */
@@ -287,12 +301,30 @@ WeatherRouting::WeatherRouting(wxWindow *parent, weather_routing_pi &plugin)
     m_panel->m_lPositions->Connect( wxEVT_COMMAND_LIST_KEY_DOWN, wxListEventHandler( WeatherRouting::OnPositionKeyDown ), NULL, this );
     m_panel->m_lWeatherRoutes->Connect( wxEVT_LEFT_DCLICK, wxMouseEventHandler( WeatherRouting::OnEditConfigurationClick ), NULL, this );
     m_panel->m_lWeatherRoutes->Connect( wxEVT_LEFT_DOWN, wxMouseEventHandler( WeatherRouting::OnWeatherRoutesListLeftDown ), NULL, this );
+    m_panel->m_lWeatherRoutes->Connect( wxEVT_LEFT_UP, wxMouseEventHandler( WeatherRouting::OnLeftUp ), NULL, this );    
+    m_panel->m_lPositions->Connect( wxEVT_LEFT_DOWN, wxMouseEventHandler( WeatherRouting::OnLeftDown ), NULL, this );
+    m_panel->m_lPositions->Connect( wxEVT_LEFT_UP, wxMouseEventHandler( WeatherRouting::OnLeftUp ), NULL, this );    
     m_panel->m_lWeatherRoutes->Connect( wxEVT_COMMAND_LIST_COL_CLICK, wxListEventHandler( WeatherRouting::OnWeatherRouteSort ), NULL, this );
     m_panel->m_lWeatherRoutes->Connect( wxEVT_COMMAND_LIST_ITEM_DESELECTED, wxListEventHandler( WeatherRouting::OnWeatherRouteSelected ), NULL, this );
     m_panel->m_lWeatherRoutes->Connect( wxEVT_COMMAND_LIST_ITEM_SELECTED, wxListEventHandler( WeatherRouting::OnWeatherRouteSelected ), NULL, this );
     m_panel->m_lWeatherRoutes->Connect( wxEVT_COMMAND_LIST_KEY_DOWN, wxListEventHandler( WeatherRouting::OnWeatherRouteKeyDown ), NULL, this );
     m_panel->m_bCompute->Connect( wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler( WeatherRouting::OnCompute ), NULL, this );
     m_panel->m_bExport->Connect( wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler( WeatherRouting::OnExport ), NULL, this );
+
+
+#ifdef __OCPN__ANDROID__ 
+    GetHandle()->setAttribute(Qt::WA_AcceptTouchEvents);
+    GetHandle()->grabGesture(Qt::PanGesture);
+    GetHandle()->setStyleSheet( qtStyleSheet);
+
+    GetHandle()->setAttribute(Qt::WA_AcceptTouchEvents);
+    GetHandle()->grabGesture(Qt::PanGesture);
+    Connect( wxEVT_QT_PANGESTURE,
+                       (wxObjectEventFunction) (wxEventFunction) &WeatherRouting::OnEvtPanGesture, NULL, this );
+    m_tDownTimer.Connect(wxEVT_TIMER, wxTimerEventHandler
+                         ( WeatherRouting::OnDownTimer ), NULL, this);
+#endif
+
 }
 
 WeatherRouting::~WeatherRouting( )
@@ -335,6 +367,47 @@ WeatherRouting::~WeatherRouting( )
     delete m_colpane;
 }
 
+#ifdef __OCPN__ANDROID__ 
+void WeatherRouting::OnEvtPanGesture( wxQT_PanGestureEvent &event)
+{
+    switch(event.GetState()){
+        case GestureStarted:
+            m_startPos = GetPosition();
+            m_startMouse = event.GetCursorPos(); //g_mouse_pos_screen;
+            break;
+        default:
+        {
+            wxPoint pos = event.GetCursorPos();
+            int x = wxMax(0, pos.x + m_startPos.x - m_startMouse.x);
+            int y = wxMax(0, pos.y + m_startPos.y - m_startMouse.y);
+            int xmax = ::wxGetDisplaySize().x - GetSize().x;
+            x = wxMin(x, xmax);
+            int ymax = ::wxGetDisplaySize().y - GetSize().y;          // Some fluff at the bottom
+            y = wxMin(y, ymax);
+            
+            Move(x, y);
+            m_tDownTimer.Stop();
+        } break;
+    }
+}
+#endif
+
+void WeatherRouting::OnLeftDown( wxMouseEvent& event )
+{
+    m_tDownTimer.Start(1200, true);
+    m_downPos = event.GetPosition();
+}
+
+void WeatherRouting::OnLeftUp( wxMouseEvent& event )
+{
+    m_tDownTimer.Stop();
+}
+
+void WeatherRouting::OnDownTimer( wxTimerEvent & )
+{
+    m_panel->m_lWeatherRoutes->PopupMenu( m_mContextMenu, m_downPos );
+}
+
 void WeatherRouting::CopyDataFiles(wxString from, wxString to)
 {
     if (from[from.Len() - 1] != '\\' && from[from.Len() - 1] != '/') from += wxFILE_SEP_PATH;
@@ -357,17 +430,19 @@ void WeatherRouting::CopyDataFiles(wxString from, wxString to)
     }
 }
 
-void WeatherRouting::Render(wrDC &dc, PlugIn_ViewPort &vp)
+void WeatherRouting::Render(piDC &dc, PlugIn_ViewPort &vp)
 {
     if (vp.bValid == false)
         return;
 
     if(!dc.GetDC()) {
+#ifndef __OCPN__ANDROID__
         glPushAttrib(GL_LINE_BIT | GL_ENABLE_BIT | GL_HINT_BIT ); //Save state
         glEnable( GL_LINE_SMOOTH );
-        glEnable( GL_BLEND );
         glBlendFunc( GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA );
         glHint( GL_LINE_SMOOTH_HINT, GL_NICEST );
+#endif
+        glEnable( GL_BLEND );
     }
 
     wxDateTime time = m_ConfigurationDialog.m_GribTimelineTime;
@@ -398,8 +473,10 @@ void WeatherRouting::Render(wrDC &dc, PlugIn_ViewPort &vp)
 
     m_ConfigurationBatchDialog.Render(dc, vp);
 
+#ifndef __OCPN__ANDROID__
     if(!dc.GetDC())
         glPopAttrib();
+#endif
 }
 
 void WeatherRouting::UpdateDisplaySettings()
@@ -602,7 +679,8 @@ void WeatherRouting::UpdateRoutePositionDialog()
     RoutePositionDialog &dlg = m_RoutePositionDialog;
     if(!dlg.IsShown())
         return;
-    
+
+    m_positionOnRoute = NULL;
     std::list<RouteMapOverlay*> currentroutemaps = CurrentRouteMaps();
     if(currentroutemaps.size() != 1) {
         RoutePositionDialogMessage(dlg, _("Select exactly 1 configuration"));
@@ -1005,6 +1083,7 @@ void WeatherRouting::OnWeatherRouteKeyDown( wxListEvent& event )
 
 void WeatherRouting::OnWeatherRoutesListLeftDown(wxMouseEvent &event)
 {
+    OnLeftDown(event);
     wxPoint pos = event.GetPosition();
     int flags = 0;
     long index = m_panel->m_lWeatherRoutes->HitTest(pos, flags);
@@ -1259,6 +1338,7 @@ bool WeatherRouting::Show(bool show)
         m_ReportDialog.Show(m_bShowReport);
         m_PlotDialog.Show(m_bShowPlot);
         m_FilterRoutesDialog.Show(m_bShowFilter);
+        m_RoutePositionDialog.Show(m_bShowRoutePosition);
     } else {
         m_bShowConfiguration = m_ConfigurationDialog.IsShown();
         m_ConfigurationDialog.Hide();
@@ -1280,6 +1360,9 @@ bool WeatherRouting::Show(bool show)
 
         m_bShowFilter = m_FilterRoutesDialog.IsShown();
         m_FilterRoutesDialog.Hide();
+
+        m_bShowRoutePosition = m_RoutePositionDialog.IsShown();
+        m_RoutePositionDialog.Hide();
     }
 
     return WeatherRoutingBase::Show(show);
@@ -2337,7 +2420,7 @@ void WeatherRouting::Reset()
             reinterpret_cast<WeatherRoute*>(wxUIntToPtr(m_panel->m_lWeatherRoutes->GetItemData(i)));
         weatherroute->routemapoverlay->Reset();
     }
-
+    m_positionOnRoute = NULL;
     UpdateDialogs();
 
     GetParent()->Refresh();
