@@ -289,7 +289,8 @@ static wxColour Darken(wxColour c)
 }
 
 void RouteMapOverlay::Render(wxDateTime time, SettingsDialog &settingsdialog,
-                             wrDC &dc, PlugIn_ViewPort &vp, bool justendroute)
+                             wrDC &dc, PlugIn_ViewPort &vp, bool justendroute,
+                             Position* positionOnRoute)
 {
     dc.SetPen(*wxBLACK); // reset pen
     dc.SetBrush( *wxTRANSPARENT_BRUSH); // reset brush
@@ -462,6 +463,19 @@ void RouteMapOverlay::Render(wxDateTime time, SettingsDialog &settingsdialog,
         bool apparent = settingsdialog.m_cbDisplayApparentWindBarbs->GetValue();
         if (lineWidth > 0)
             RenderWindBarbsOnRoute(dc, vp, lineWidth, apparent);
+            
+        // CUSTOMIZATION
+        // Display the position of the cursor on route
+        // where the infos are read from Route Position window
+        if (positionOnRoute != NULL)
+        {
+            wxPoint r;
+            GetCanvasPixLL(&vp, &r, positionOnRoute->lat, positionOnRoute->lon);
+            wxColour ownBlue(20, 83, 186);
+            SetColor(dc, ownBlue, true);
+            dc.StrokeCircle( r.x, r.y, 7 );
+        }
+        
         
         if(MarkAtPolarChange) {
             SetColor(dc, Darken(DestinationColor), true);
@@ -1125,7 +1139,8 @@ void RouteMapOverlay::RenderCurrent(wrDC &dc, PlugIn_ViewPort &vp)
 #endif
                 double VW = d*VW1 + (1-d)*VW2;
 
-                g_LineBufferOverlay.pushSingleArrow(current_cache, x, y, VW, deg2rad(W+180), lat < 0 );
+                g_LineBufferOverlay.pushSingleArrow(current_cache, x, y, VW,
+                                                           deg2rad(W+180) + nvp.rotation, lat < 0 );
 
                 }
             skip:;
